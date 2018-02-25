@@ -3,7 +3,7 @@ import numpy as np
 import scipy.linalg as lg
 import matplotlib.pyplot as plt
 import copy
-import random
+
 
 row,col = 3,2 # row x row blocks of col x col toeplitz matrices
 N = row*col
