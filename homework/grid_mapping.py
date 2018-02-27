@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 import random
 
 class source:
-    def __init__(self, x, y, weight):
+    def __init__(self, x, y, weight, N):
         self.x = x
         self.y = y
         self.weight = weight
-        self.grid = (0,0)
+        self.grid = np.array([0,0])
+        self.pots = np.zeros(N)
         
 # set up grid
 Dx, Dy = 5,5
@@ -17,28 +18,41 @@ step = Dx/x_boxes
 grid = np.array([np.zeros(y_boxes+1) for i in range(x_boxes+1)])
 Mrx, Mry = x_boxes, y_boxes
 Msp = 1
-tau = 4
+tau = 1
 
-N = 10
-src_list = []
-for i in range(N):
-    src_list.append(source(Dx * np.random.random(), Dy * np.random.random(),\
-                    np.random.random()))
-
+N = 100
+src_list = [source(1.1,1.6,1,1)]
+#src_list = []
+#for i in range(N):
+#    src_list.append(source(Dx * np.random.random(), Dy * np.random.random(),\
+#                    np.random.random(), N))
 # Map to nearest bottom left corner
 for src in src_list:
     src.grid = (int(np.floor(src.x/step)), int(np.floor(src.y/step)))
-    E1 = np.exp(-((src.x-src.grid[0])**2+\
-                  (src.y-src.grid[1])**2)/(4*tau))
-    E2x = np.exp(np.pi*(src.x-src.grid[0])/(Mrx*tau))
-    E2y = np.exp(np.pi*(src.y-src.grid[1])/(Mry*tau))
-    V0 = src.weight * E1
-    for l2 in range(-Msp+1,Msp+1):
-        Vy = V0 * E2y**l2
-        for l1 in range(-Msp+1,Msp+1):
-            grid[src.grid[0]+l1, src.grid[1]+l2] += Vy * E2x**l1
-            print(Vy * E2x**l1)
 
 
-test = np.exp(-((1.2-1)**2+\
-                  (1.7-1)**2)/(4*tau))
+src = src_list[0]
+order = 2
+idxs = (order+1)**2    
+W = np.array([np.zeros(idxs) for i in range(idxs)])
+Ca = np.array([[1,1],[1,2],[2,1],[2,2]])
+M_check = np.array([[0,0],[0,1],[1,0],[1,1]])
+
+count = 0
+M = np.array([np.zeros(2) for i in range(idxs)])
+for i in range(order+1):
+    for j in range(order+1):
+        M[count] = np.array([i,j])
+        count+= 1
+
+#for ui,u in enumerate(Ca):
+#    ux = u-src.grid
+#    for mi,m in enumerate(M):
+#        W[mi,ui] = np.prod(ux**m)
+##Create Q vector
+#Q = np.zeros(idxs)
+#Q_terms = np.array([src.x,src.y]) - src.grid
+#for i in range(4):
+#    Q[i] = np.prod(Q_terms**M[i])
+    
+#lam = np.inner(lg.inv(W),Q)
