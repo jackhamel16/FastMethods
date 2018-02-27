@@ -4,8 +4,7 @@ import scipy.linalg as lg
 import matplotlib.pyplot as plt
 import copy
 
-
-row,col = 3,2 # row x row blocks of col x col toeplitz matrices
+row,col = 5,6 # row x row blocks of col x col toeplitz matrices
 N = row*col
 
 def idx2coord(i, c):
@@ -85,31 +84,47 @@ def toeplitz2circulant_r(row, col):
     work_col[0] = 0
     return(np.hstack((row,work_col)))
 
-#note: code works for isotropic Green's kernels ONLY
 rows, cols = compute_rowcol(row, col)
 blocks = compute_blocks(row, col)       
 g_mat = compute_g1(row, col)
 
 x = np.random.rand(N)
-b = np.inner(g_mat,x)
+b_test = np.inner(g_mat,x)
 
 # compute circulant matrices of tpz blocks
 circ_blocks = [toeplitz2circulant_b(block) for block in blocks]
 circ_rows = [toeplitz2circulant_r(rows[i], cols[i]) for i in range(row)]
-circ = np.hstack(tuple(circ_rows))
+circ_row = np.hstack(tuple(circ_rows))
+
+
 # Create top row of circulant block circulant matrix
-pad_array = np.zeros(2*col)
-work_rows = np.roll(np.flip(np.hstack(tuple(circ_rows)),0),2*col)
-work_rows[0:2*col] = np.zeros(2*col)
-block_circ_row = np.hstack((np.hstack(tuple(circ_rows))\
-                             ,work_rows))
+work_rows = [np.zeros(2*col) for i in range(row)]
+for i in range(1,row):
+    work_rows[row-i] = circ_rows[i]
+block_circ_rows = circ_rows + work_rows
+block_circ_row = np.hstack(tuple(block_circ_rows))
 
+# Pad x vector
+xp = np.zeros(4*N)
+for i in range(row):
+    xp[2*i*col:(2*i+1)*col] = x[i*col:(i+1)*col]
+    
+#### FAST MATVEC ####
 # Diagnolize block_circ_row
-diag = np.hstack(tuple((np.fft.fft2(np.reshape(block_circ_row,(2*col,2*row))))))
-x_pad = np.zeros(3*N)
-x_padded = np.hstack((x,x_pad))
-b_fast = np.fft.ifft(diag*np.fft.fft(x_padded))
+pre_diag = np.transpose(np.reshape(block_circ_row,(2*row,2*col)))
+diag = np.hstack(tuple((np.transpose(np.fft.fft2(pre_diag)))))
 
+pre_xft = np.transpose(np.reshape(xp,(2*row,2*col)))
+xft = np.hstack(tuple(np.transpose(np.fft.fft2(pre_xft))))
+
+pre_b_fast = np.transpose(np.reshape(diag*xft,(2*row,2*col)))
+b_fast_long = np.hstack(tuple(np.transpose(np.fft.ifft2(pre_b_fast))))
+#### ####
+
+#Reconstruct b
+b_fast = np.zeros(N)
+for i in range(row):
+    b_fast[i*col:(i+1)*col] = b_fast_long[2*i*col:(2*i+1)*col]
 
 circ_row = np.array([])
 for block in circ_blocks:
