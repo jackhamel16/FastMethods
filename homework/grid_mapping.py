@@ -11,6 +11,9 @@ class source:
         self.grid = np.array([0,0])
         self.pots = np.zeros(N)
         
+def HeatPlot(mat):
+    plt.imshow(mat, cmap='hot', interpolation='nearest')
+        
 # set up grid
 Dx, Dy = 5,5
 x_boxes, y_boxes = 5,5
@@ -21,7 +24,7 @@ Msp = 1
 tau = 1
 
 N = 100
-src_list = [source(1.1,1.6,1,1)]
+src_list = [source(1.5,1.5,1,1)]
 #src_list = []
 #for i in range(N):
 #    src_list.append(source(Dx * np.random.random(), Dy * np.random.random(),\
@@ -33,26 +36,56 @@ for src in src_list:
 
 src = src_list[0]
 order = 2
-idxs = (order+1)**2    
-W = np.array([np.zeros(idxs) for i in range(idxs)])
-Ca = np.array([[1,1],[1,2],[2,1],[2,2]])
-M_check = np.array([[0,0],[0,1],[1,0],[1,1]])
+u_count = (order+1)**2# num of expansion points in Ca
 
-count = 0
-M = np.array([np.zeros(2) for i in range(idxs)])
-for i in range(order+1):
-    for j in range(order+1):
-        M[count] = np.array([i,j])
-        count+= 1
+l1, l2 = int(np.floor(order/2)), int(np.ceil(order/2)) # -l1, l2 range of expansion from grid pnt
+weights = np.array([np.zeros(4) for i in range(4)])
 
-#for ui,u in enumerate(Ca):
-#    ux = u-src.grid
-#    for mi,m in enumerate(M):
-#        W[mi,ui] = np.prod(ux**m)
-##Create Q vector
-#Q = np.zeros(idxs)
-#Q_terms = np.array([src.x,src.y]) - src.grid
-#for i in range(4):
-#    Q[i] = np.prod(Q_terms**M[i])
+def compute_Ca_shifts(u_count, l1, l2):
+    # computes the shifts from the src's grid pnt given order of expansion
+    count = 0
+    shifts = np.array([np.zeros(2) for i in range(u_count)])
+    for i in range(-l1,l2+1):
+        for j in range(-l1,l2+1):
+            shifts[count] = np.array([i,j])
+            count += 1
+    return(shifts)
+
+Ca = np.array([src.grid for i in range(u_count)]) + \
+         compute_Ca_shifts(u_count,l1,l2)
+def compute_M(u_count, order):
+    # Computes all possible cominations of m0, m1 given the order
+    count = 0
+    M = np.array([np.zeros(2) for i in range(u_count)])
+    for i in range(order+1):
+        for j in range(order+1):
+            M[count] = np.array([i,j])
+            count+= 1
+    return(M)
+
+M = compute_M(u_count, order)
+
+W = np.array([np.zeros(u_count) for i in range(u_count)])
+for ui,u in enumerate(Ca):
+    ux = u-src.grid
+    print(ux)
+    for mi,m in enumerate(M):
+        W[mi,ui] = np.prod(ux**m)
+
+#Create Q vector
+Q = np.zeros(u_count)
+Q_terms = np.array([src.x,src.y]) - src.grid
+for i in range(u_count):
+    Q[i] = np.prod(Q_terms**M[i])
     
-#lam = np.inner(lg.inv(W),Q)
+lam = np.inner(lg.inv(W),Q)
+
+for i,u in enumerate(Ca):
+    weights[int(u[0]),int(u[1])] = lam[i]
+    
+plt.scatter(Ca[:,0],Ca[:,1], c=lam)
+plt.scatter(src.x,src.y, c=src.weight)
+plt.colorbar()
+
+
+
