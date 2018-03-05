@@ -1,7 +1,5 @@
 import numpy as np
 import scipy.linalg as lg
-import matplotlib.pyplot as plt
-import random
 import scipy.sparse as sparse
 
 class source:
@@ -11,10 +9,7 @@ class source:
         self.weight = weight
         self.grid = np.array([0,0])
         self.near = []
-        
-def HeatPlot(mat):
-    plt.imshow(mat, cmap='hot', interpolation='nearest')
-    
+
 def compute_Ca_shifts(u_count, l1, l2):
     # computes the shifts from the src's grid pnt given order of expansion
     # IMPORTANT: The values are relative to the current grid point
@@ -46,7 +41,7 @@ def compute_M(u_count, order):
             count+= 1
     return(M)
 
-def compute_near_fields(src_list, lam_mat):
+def compute_near_fields(src_list, lam_mat, N):
     A_n = sparse.lil_matrix((N,N)) # Direct near fields
     A_nf = sparse.lil_matrix((N,N)) # Near fields with grid mapping
     
@@ -82,84 +77,6 @@ def find_near_srcs(src, src_list, lo, hi):
         if (lo < delta_x < hi) & (lo < delta_y < hi):
             src.near.append(i)
 
-def idx2coord(i, ctot):
-    row = np.floor(i/ctot)
-    col = i%ctot
-    return(row, col)
-
-def coord2idx(r, c, ctot):
-    return(int(c + r * ctot))
-
-# SETUP #
-#N = 100
-#Dx, Dy = 10, 10
-#order = 1
-#x_pnts, y_pnts = Dx+1, Dx+1
-#pnts = x_pnts * y_pnts
-#xstep, ystep = Dx/(x_pnts-1), Dy/(y_pnts-1)
-#u_count = (order+1)**2# num of expansion points in Ca
-#
-## -l1, l2 range of expansion from grid pnt
-#l1, l2 = int(np.floor(order/2)), int(np.ceil(order/2)) 
-## set bounds on where pnts are not far field
-#bnd_lo, bnd_hi = -l1-3, l2+2
-
-#src_list = [source(4.1,0.1,1,N), source(4.5,1.2,1,N), source(0.1, 0.1, 0.7,N)]
-#src_list = []
-#for i in range(N):
-#    src_list.append(source(Dx * np.random.random(), Dy * np.random.random(),\
-#                    np.random.random(), N))
-#    # Map src to nearest lower left grid pnt
-#    src_list[i].grid = (int(np.floor(src.x/xstep)), int(np.floor(src.y/ystep)))
-
-## Begin Mapping
-#Ca_shifts = compute_Ca_shifts(u_count, l1, l2)
-#M = compute_M(u_count, order)
-#W = compute_W(u_count, Ca_shifts, M)
-#
-#Winv = lg.inv(W)
-#lam_mat = sparse.lil_matrix((N,pnts))
-#print("Computing Lambda and Finding Near Sources...")
-#for i,src in enumerate(src_list):
-#    find_near_srcs(src, src_list, bnd_lo, bnd_hi)
-#    
-#    Q = compute_Q(u_count, M, src)
-#    lam = np.inner(Winv, Q)
-#    for j,u in enumerate(Ca_shifts):
-#        idx = coord2idx(int(u[0]+src.grid[0]),int(u[1]+src.grid[1]),x_pnts)
-#        lam_mat[i,idx] = lam[j] 
-#
-#lam_mat = lam_mat.asformat("csr") #better suited for mutliplication
-#print("Compute G")
-#G = compute_g1(x_pnts,y_pnts)
-#print("Computing Lambda * G...")
-#lam_G = lam_mat*G
-#print("Computing Near-Far Fields...")    
-#A_near, An = compute_near_fields(src_list, lam_mat)
-#A_fn = lam_G*lam_mat.transpose()
-#
-## Direct Computation
-#print("Computing Direct Interactions...")
-#
-#A_direct = compute_directly(src_list, N)
-#A = A_near + A_fn - An
-#
-#pot_aim = np.zeros(N)
-#pot_direct = np.zeros(N)
-#
-#pot_aim = sum(A.transpose())
-#pot_direct = sum(A_direct.transpose())
-#
-#error = (pot_aim - pot_direct) / pot_direct
-#avg_error = error.sum()/N
-#print(avg_error)
-#print(A)
-#print(A_direct)
-#lam_mat = np.array([np.zeros(Dx*Dx) for i in range(N)])
-#Q_mat = np.array([np.zeros(u_count) for i in range(N)])
-#for n,src in enumerate(src_list):
-#    Q_mat[n,:] = compute_Q(u_count, M, src)
-#lam_mat = np.inner(lg.inv(W),Q_mat)
 
 # CODE TO FIND NEAR FIELD PINTS OF A SRC
 #for i,src in enumerate(src_list):

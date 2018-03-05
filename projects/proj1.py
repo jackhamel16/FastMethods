@@ -2,7 +2,10 @@ import time
 import numpy as np
 import scipy.linalg as lg
 import matplotlib.pyplot as plt
-    
+import scipy.sparse as sparse
+
+import grid_mapping as gm
+
 def block_toeplitz2block_circulant(circ_rows, row, col):
     work_rows = [np.zeros(2*col) for i in range(row)]
     for i in range(1,row):
@@ -59,6 +62,15 @@ def idx2coord(i, c):
     col = i%c
     return(row, col)
 
+def coord2idx(r, c, ctot):
+    return(int(c + r * ctot))
+
+def pad_x_vector(x, N, col):
+    xp = np.zeros(4*N)
+    for i in range(row):
+        xp[2*i*col:(2*i+1)*col] = x[i*col:(i+1)*col]
+    return(xp)
+
 def plot(mat):
     # Quick way to visualize matrices
     plt.imshow(mat, cmap='hot', interpolation='nearest')
@@ -76,17 +88,75 @@ def toeplitz2circulant_row(row, col):
     work_col[0] = 0
     return(np.hstack((row,work_col)))
 
-row,col = 5,6 # row x row blocks of col x col toeplitz matrices
-N = row*col
+# SETUP #
+N = 10
+Dx, Dy = 10, 10
+order = 1
+rows, cols = Dx+1, Dx+1 # rowsXrows blocks of colsXcols toeplitz matrices
+N_grid = rows * cols;
+xstep, ystep = Dx/(rows-1), Dy/(rows-1)
+u_count = (order+1)**2# num of expansion points in Ca
+
+# -l1, l2 range of expansion from grid pnt
+l1, l2 = int(np.floor(order/2)), int(np.ceil(order/2)) 
+# set bounds on where pnts are not far field
+bnd_lo, bnd_hi = -l1-3, l2+2
+
 x = np.random.rand(N)
 
-rows, cols = compute_rowcol(row, col) # of G matrix
-circ_rows = [toeplitz2circulant_row(rows[i], cols[i]) for i in range(row)]
-block_circ_row = block_toeplitz2block_circulant(circ_rows, row, col)
+# Generate sources (srcs):
+src_list = []
+for i in range(N):
+    src_list.append(gm.source(Dx * np.random.random(),Dy * np.random.random(),\
+                    np.random.random(), N))
+    # Map src to nearest lower left grid pnt
+    src_list[i].grid = (int(np.floor(src_list[i].x/xstep)), \
+                        int(np.floor(src_list[i].y/ystep)))
 
-# Pad x vector
-xp = np.zeros(4*N)
-for i in range(row):
-    xp[2*i*col:(2*i+1)*col] = x[i*col:(i+1)*col]
+# Begin Mapping
+Ca_shifts = gm.compute_Ca_shifts(u_count, l1, l2)
+M = gm.compute_M(u_count, order)
+W = gm.compute_W(u_count, Ca_shifts, M)
+
+Winv = lg.inv(W)
+lam_mat = sparse.lil_matrix((N,N_grid))
+print("Computing Lambda and Finding Near Sources...")
+for i,src in enumerate(src_list):
+    gm.find_near_srcs(src, src_list, bnd_lo, bnd_hi)
     
-b_fast = fft_matvec(block_circ_row, xp, row, col)
+    Q = gm.compute_Q(u_count, M, src)
+    lam = np.inner(Winv, Q)
+    for j,u in enumerate(Ca_shifts):
+        idx = coord2idx(int(u[0]+src.grid[0]),int(u[1]+src.grid[1]),rows)
+        lam_mat[i,idx] = lam[j] 
+
+lam_mat = lam_mat.asformat("csr") #better suited for mutliplication
+print("Compute G")
+G = compute_g1(rows,cols)
+print("Computing Lambda * G...")
+lam_G = lam_mat*G
+print("Computing Near-Far Fields...")    
+A_near, An = gm.compute_near_fields(src_list, lam_mat, N)
+A_fn = lam_G*lam_mat.transpose()
+
+# Direct Computation
+print("Computing Direct Interactions...")
+
+A_direct = compute_directly(src_list, N)
+A = A_near + A_fn - An
+
+pot_aim = sum(A.transpose())
+pot_direct = sum(A_direct.transpose())
+
+error = (pot_aim - pot_direct) / pot_direct
+avg_error = error.sum()/N
+print(avg_error)
+
+#xp = pad_x_vector(x,N,cols)
+#
+#G_rows, G_cols = compute_rowcol(row, col) # of G matrix
+#circ_rows = [toeplitz2circulant_row(G_rows[i], G_cols[i]) for i in range(rows)]
+#block_circ_row = block_toeplitz2block_circulant(circ_rows, rows, cols)
+#
+#    
+#b_fast = fft_matvec(block_circ_row, xp, rows, cols)
