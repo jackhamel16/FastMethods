@@ -42,19 +42,19 @@ def compute_rowcol(row, col):
         cols.append(b_col)
     return(rows, cols)
 
-def fft_matvec(block_circ_row, xp, row, col):
+def fft_matvec(block_circ_row, xp, rows, cols):
     #Computes the fast matvec of a circulant block circulant mat given its
     #top row with x (which is padded in this application)
-    pre_diag = reshape(block_circ_row,row, col)
+    pre_diag = reshape(block_circ_row,rows, cols)
     diag = reshape_inv(np.fft.fft2(pre_diag))
-    pre_xft = reshape(xp,row,col)
+    pre_xft = reshape(xp,rows,cols)
     xft = reshape_inv(np.fft.fft2(pre_xft))
-    pre_b_fast = reshape(diag*xft, row, col)
+    pre_b_fast = reshape(diag*xft, rows, cols)
     b_fast_long = reshape_inv(np.fft.ifft2(pre_b_fast))
     
-    b_fast = np.zeros(N)
-    for i in range(row):  # removing solutions due to padding of x
-        b_fast[i*col:(i+1)*col] = np.real(b_fast_long[2*i*col:(2*i+1)*col])
+    b_fast = np.zeros(rows*cols)
+    for i in range(rows):  # removing solutions due to padding of x
+        b_fast[i*cols:(i+1)*cols] = np.real(b_fast_long[2*i*cols:(2*i+1)*cols])
     return(b_fast)
 
 def idx2coord(i, c):
@@ -65,10 +65,10 @@ def idx2coord(i, c):
 def coord2idx(r, c, ctot):
     return(int(c + r * ctot))
 
-def pad_x_vector(x, N, col):
+def pad_x_vector(x, N, cols):
     xp = np.zeros(4*N)
-    for i in range(row):
-        xp[2*i*col:(2*i+1)*col] = x[i*col:(i+1)*col]
+    for i in range(cols):
+        xp[2*i*cols:(2*i+1)*cols] = x[i*cols:(i+1)*cols]
     return(xp)
 
 def plot(mat):
@@ -89,7 +89,7 @@ def toeplitz2circulant_row(row, col):
     return(np.hstack((row,work_col)))
 
 # SETUP #
-N = 10
+N = 500
 Dx, Dy = 10, 10
 order = 1
 rows, cols = Dx+1, Dx+1 # rowsXrows blocks of colsXcols toeplitz matrices
@@ -114,49 +114,92 @@ for i in range(N):
                         int(np.floor(src_list[i].y/ystep)))
 
 # Begin Mapping
+start_fast = time.clock()
 Ca_shifts = gm.compute_Ca_shifts(u_count, l1, l2)
 M = gm.compute_M(u_count, order)
 W = gm.compute_W(u_count, Ca_shifts, M)
 
 Winv = lg.inv(W)
 lam_mat = sparse.lil_matrix((N,N_grid))
+find_near_time = 0
+time1 = 0
 print("Computing Lambda and Finding Near Sources...")
 for i,src in enumerate(src_list):
+    s = time.clock()
     gm.find_near_srcs(src, src_list, bnd_lo, bnd_hi)
+    find_near_time += time.clock() - s
     
+    s1 = time.clock()
     Q = gm.compute_Q(u_count, M, src)
     lam = np.inner(Winv, Q)
+    time1 += time.clock() - s1
     for j,u in enumerate(Ca_shifts):
         idx = coord2idx(int(u[0]+src.grid[0]),int(u[1]+src.grid[1]),rows)
         lam_mat[i,idx] = lam[j] 
 
 lam_mat = lam_mat.asformat("csr") #better suited for mutliplication
-print("Compute G")
+print("Computing G...")
+s2 = time.clock()
 G = compute_g1(rows,cols)
+time2 = time.clock() - s2
 print("Computing Lambda * G...")
 lam_G = lam_mat*G
 print("Computing Near-Far Fields...")    
-A_near, An = gm.compute_near_fields(src_list, lam_mat, N)
-A_fn = lam_G*lam_mat.transpose()
+s3 = time.clock()
+A_near, A_far_near = gm.compute_near_fields(src_list, lam_mat, lam_G, N)
+time3 = time.clock() - s3
+
+# Computing Y = lam * G * lam^T * x
+Y1 = lam_mat.transpose() * x
+
+Y1p = pad_x_vector(Y1, N_grid, cols)
+
+G_rows, G_cols = compute_rowcol(rows, cols) # of G matrix
+circ_rows = [toeplitz2circulant_row(G_rows[i], G_cols[i]) for i in range(rows)]
+block_circ_row = block_toeplitz2block_circulant(circ_rows, rows, cols)
+
+Y_far = lam_mat * fft_matvec(block_circ_row, Y1p, rows, cols)
+Y_near = A_near * x
+Y_far_near = A_far_near * x
+
+Y_fast = Y_near + Y_far - Y_far_near
+time_fast = time.clock() - start_fast
 
 # Direct Computation
 print("Computing Direct Interactions...")
+start_slow = time.clock()
+A_direct = gm.compute_directly(src_list, N)
+Y_direct = np.matmul(A_direct, x)
+time_slow = time.clock() - start_slow
 
-A_direct = compute_directly(src_list, N)
-A = A_near + A_fn - An
+print("Fast Time: ", time_fast)
+print("Slow Time: ", time_slow)
+
+A_far = lam_G*lam_mat.transpose()
+A = A_near + A_far - A_far_near
 
 pot_aim = sum(A.transpose())
 pot_direct = sum(A_direct.transpose())
 
 error = (pot_aim - pot_direct) / pot_direct
 avg_error = error.sum()/N
-print(avg_error)
+print("Potential Error: ", avg_error)
 
-#xp = pad_x_vector(x,N,cols)
+# MATVEC COMPUTATIONS
+Y_direct = np.matmul(A_direct, x)
+
+Y1 = lam_mat.transpose() * x
+
+Y1p = pad_x_vector(Y1, N_grid, cols)
 #
-#G_rows, G_cols = compute_rowcol(row, col) # of G matrix
-#circ_rows = [toeplitz2circulant_row(G_rows[i], G_cols[i]) for i in range(rows)]
-#block_circ_row = block_toeplitz2block_circulant(circ_rows, rows, cols)
+G_rows, G_cols = compute_rowcol(rows, cols) # of G matrix
+circ_rows = [toeplitz2circulant_row(G_rows[i], G_cols[i]) for i in range(rows)]
+block_circ_row = block_toeplitz2block_circulant(circ_rows, rows, cols)
 #
 #    
-#b_fast = fft_matvec(block_circ_row, xp, rows, cols)
+b_fast = fft_matvec(block_circ_row, Y1p, rows, cols)
+b_test = np.matmul(G, Y1)
+Y_near = A_near * x
+Y_far_near = A_far_near * x
+Y_far = lam_mat * b_fast  
+Y_fast = Y_near + Y_far - Y_far_near
