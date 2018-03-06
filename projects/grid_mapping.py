@@ -41,7 +41,7 @@ def compute_M(u_count, order):
             count+= 1
     return(M)
 
-def compute_near_fields(src_list, lam_mat, N):
+def compute_near_fields(src_list, lam_mat, lam_G, N):
     A_n = sparse.lil_matrix((N,N)) # Direct near fields
     A_nf = sparse.lil_matrix((N,N)) # Near fields with grid mapping
     
@@ -54,7 +54,7 @@ def compute_near_fields(src_list, lam_mat, N):
                 A_n[i,near_src] = src.weight * src_list[near_src].weight / \
                                   np.sqrt((src.x - src_list[near_src].x)**2 + \
                                           (src.y - src_list[near_src].y)**2)
-    return(A_n, A_nf)
+    return(A_n.asformat("csr"), A_nf.asformat("csr"))
 
 def compute_W(u_count, Ca_shifts, M):
     # computes all possible combinations of m0, m1
