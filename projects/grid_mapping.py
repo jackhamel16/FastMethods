@@ -21,16 +21,6 @@ def compute_Ca_shifts(u_count, l1, l2):
             count += 1
     return(shifts)
 
-def compute_directly(src_list, N):
-    A_direct = np.array([np.zeros(N) for i in range(N)])
-    for i,src1 in enumerate(src_list):
-        for j,src2 in enumerate(src_list):
-            if (src1.x != src2.x) or (src1.y != src2.y):
-                A_direct[i,j] = src1.weight * src2.weight / \
-                                np.sqrt((src1.x - src2.x)**2 + \
-                                        (src1.y - src2.y)**2)
-    return(A_direct)
-
 def compute_M(u_count, order):
     # Computes all possible cominations of m0, m1 given the order
     count = 0
@@ -51,24 +41,24 @@ def compute_near_fields(src_list, lam_mat, lam_G, N):
             # Direct near field computation:
             if (src.x != src_list[near_src].x) or \
                (src.y != src_list[near_src].y):
-                A_n[i,near_src] = src.weight * src_list[near_src].weight / \
+                A_n[i,near_src] = 1 / \
                                   np.sqrt((src.x - src_list[near_src].x)**2 + \
                                           (src.y - src_list[near_src].y)**2)
     return(A_n.asformat("csr"), A_nf.asformat("csr"))
 
-def compute_W(u_count, Ca_shifts, M):
+def compute_W(u_count, Ca_shifts, M,step):
     # computes all possible combinations of m0, m1
     W = np.array([np.zeros(u_count) for i in range(u_count)])
     for ui,ux in enumerate(Ca_shifts):
         for mi,m in enumerate(M):
-            W[mi,ui] = np.prod(ux**m)
+            W[mi,ui] = np.prod((ux*step)**m)
     return(W)
 
-def compute_Q(u_count, M, src):
+def compute_Q(u_count, M, src, step):
     Q = np.zeros(u_count)
-    Q_terms = np.array([src.x,src.y]) - src.grid
+    Q_terms = np.array([src.x,src.y]) - (src.grid[0]*step,src.grid[1]*step)
     for i in range(u_count):
-        Q[i] = src.weight*np.prod(Q_terms**M[i])
+        Q[i] = np.prod(Q_terms**M[i])
     return(Q)
 
 def find_near_srcs(src, src_list, lo, hi):
