@@ -12,8 +12,20 @@ def block_toeplitz2block_circulant(circ_rows, row, col):
         work_rows[row-i] = circ_rows[i]
     block_circ_rows = circ_rows + work_rows
     return(np.hstack(tuple(block_circ_rows)))
+
+def compute_directly(src_list, N):
+    A_direct = np.array([np.zeros(N) for i in range(N)])
+    for i,src1 in enumerate(src_list):
+        for j,src2 in enumerate(src_list):
+            if (src1.x != src2.x) or (src1.y != src2.y):
+                A_direct[i,j] = 1 / \
+                                np.sqrt((src1.x - src2.x)**2 + \
+                                        (src1.y - src2.y)**2)
+            else:
+                A_direct[i,j] = 0
+    return(A_direct)
     
-def compute_g1(row, col):
+def compute_g1(row, col, step):
     # Directly computes entire G matrix. Useful for testing, not practical
     N = row*col
     g_mat = np.array([np.zeros(N) for i in range(N)])
@@ -24,10 +36,10 @@ def compute_g1(row, col):
                 g_mat[i,j] = 1
                 continue
             x_obs, y_obs = idx2coord(j, col)
-            g_mat[i,j] = 1/(np.sqrt((x_obs-x_src)**2+(y_obs-y_src)**2))
+            g_mat[i,j] = 1/(step * np.sqrt((x_obs-x_src)**2+(y_obs-y_src)**2))
     return(g_mat)
 
-def compute_rowcol(row, col):
+def compute_rowcol(row, col, step):
     # Computes first row and col of G mat.=, which fully describe system
     rows, cols = [], []
     for y2 in range(row):
@@ -36,8 +48,8 @@ def compute_rowcol(row, col):
             if((x2 == 0) & (y2==0)):
                 b_row[x2], b_col[x2] = 1, 0
                 continue;
-            b_row[x2] = 1 / np.sqrt((x2)**2 + (y2)**2)
-            b_col[x2] = 1 / np.sqrt((-x2)**2 + (-y2)**2)
+            b_row[x2] = 1 / (step * np.sqrt((x2)**2 + (y2)**2))
+            b_col[x2] = 1 / (step * np.sqrt((-x2)**2 + (-y2)**2))
         rows.append(b_row)
         cols.append(b_col)
     return(rows, cols)
@@ -89,12 +101,13 @@ def toeplitz2circulant_row(row, col):
     return(np.hstack((row,work_col)))
 
 # SETUP #
-N = 500
-Dx, Dy = 10, 10
+N = 2
+Dx, Dy = 4, 4
 order = 1
-rows, cols = Dx+1, Dx+1 # rowsXrows blocks of colsXcols toeplitz matrices
+step = 0.5
+rows, cols = int(np.floor(Dx/step)+1), int(np.floor(Dy/step)+1) # rowsXrows blocks of colsXcols toeplitz matrices
 N_grid = rows * cols;
-xstep, ystep = Dx/(rows-1), Dy/(rows-1)
+xstep, ystep = step, step
 u_count = (order+1)**2# num of expansion points in Ca
 
 # -l1, l2 range of expansion from grid pnt
@@ -102,22 +115,22 @@ l1, l2 = int(np.floor(order/2)), int(np.ceil(order/2))
 # set bounds on where pnts are not far field
 bnd_lo, bnd_hi = -l1-3, l2+2
 
-x = np.random.rand(N)
-
 # Generate sources (srcs):
 src_list = []
+src_list = [gm.source(0.25,0.5,0.75,N), gm.source(3.5,3.25,1,N)]
 for i in range(N):
-    src_list.append(gm.source(Dx * np.random.random(),Dy * np.random.random(),\
-                    np.random.random(), N))
+#    src_list.append(gm.source(Dx * np.random.random(),Dy * np.random.random(),\
+#                    np.random.random(), N))
     # Map src to nearest lower left grid pnt
-    src_list[i].grid = (int(np.floor(src_list[i].x/xstep)), \
-                        int(np.floor(src_list[i].y/ystep)))
+    src_list[i].grid = (int(np.floor(src_list[i].x/step)), \
+                        int(np.floor(src_list[i].y/step)))
 
+x = np.array([src.weight for src in src_list])
 # Begin Mapping
 start_fast = time.clock()
 Ca_shifts = gm.compute_Ca_shifts(u_count, l1, l2)
 M = gm.compute_M(u_count, order)
-W = gm.compute_W(u_count, Ca_shifts, M)
+W = gm.compute_W(u_count, Ca_shifts, M, step)
 
 Winv = lg.inv(W)
 lam_mat = sparse.lil_matrix((N,N_grid))
@@ -130,7 +143,7 @@ for i,src in enumerate(src_list):
     find_near_time += time.clock() - s
     
     s1 = time.clock()
-    Q = gm.compute_Q(u_count, M, src)
+    Q = gm.compute_Q(u_count, M, src, step)
     lam = np.inner(Winv, Q)
     time1 += time.clock() - s1
     for j,u in enumerate(Ca_shifts):
@@ -140,13 +153,47 @@ for i,src in enumerate(src_list):
 lam_mat = lam_mat.asformat("csr") #better suited for mutliplication
 print("Computing G...")
 s2 = time.clock()
-G = compute_g1(rows,cols)
+G = compute_g1(rows,cols,step)
 time2 = time.clock() - s2
 print("Computing Lambda * G...")
 lam_G = lam_mat*G
+test = lam_G
 print("Computing Near-Far Fields...")    
 s3 = time.clock()
-A_near, A_far_near = gm.compute_near_fields(src_list, lam_mat, lam_G, N)
+A_near1, A_far_near1 = gm.compute_near_fields(src_list, lam_mat, lam_G, N)
+
+A_near = sparse.lil_matrix((N,N))
+A_far_near = sparse.lil_matrix((N,N))
+for a, src in enumerate(src_list):
+    src_pnts = Ca_shifts + src.grid
+    src_idxs = np.array([coord2idx(pnt[0],pnt[1],cols) for pnt in src_pnts])
+    for b in src.near:
+        src2 = src_list[b]
+        src2_pnts = Ca_shifts + src2.grid
+        src2_idxs = np.array([coord2idx(pnt2[0],pnt2[1],cols) \
+                                        for pnt2 in src2_pnts])
+        lam_G = np.array([np.zeros(u_count) for n in range(u_count)])
+        # Direct Near-Field Calculation
+        if (src.x != src2.x) or (src.y != src2.y):
+            A_near[a,b] = 1 / np.sqrt((src.x - src2.x)**2 + \
+                                      (src.y - src2.y)**2)
+        for i, pnt in enumerate(src_pnts):
+            for j, pnt2 in enumerate(src2_pnts):
+                if (pnt[0] != pnt2[0]) or (pnt[1] != pnt2[1]):
+                    lam_G[i,j] = lam_mat[b,int(src2_idxs[j])] / (step * \
+                            np.sqrt((pnt[0]-pnt2[0])**2 + (pnt[1]-pnt2[1])**2))
+                    g = 1 / (step * \
+                            np.sqrt((pnt[0]-pnt2[0])**2 + (pnt[1]-pnt2[1])**2))
+                    print(pnt, pnt2, lam_mat[b,int(src2_idxs[j])], g)
+#        break
+        sum1 = lam_G.sum(1) # pot at pnts of src
+        A_src = 0
+        for i, idx in enumerate(src_idxs):
+            A_src += lam_mat[a,idx] * sum1[i]
+        A_far_near[a,b] = A_src
+
+
+
 time3 = time.clock() - s3
 
 # Computing Y = lam * G * lam^T * x
@@ -154,7 +201,7 @@ Y1 = lam_mat.transpose() * x
 
 Y1p = pad_x_vector(Y1, N_grid, cols)
 
-G_rows, G_cols = compute_rowcol(rows, cols) # of G matrix
+G_rows, G_cols = compute_rowcol(rows, cols, step) # of G matrix
 circ_rows = [toeplitz2circulant_row(G_rows[i], G_cols[i]) for i in range(rows)]
 block_circ_row = block_toeplitz2block_circulant(circ_rows, rows, cols)
 
@@ -168,20 +215,14 @@ time_fast = time.clock() - start_fast
 # Direct Computation
 print("Computing Direct Interactions...")
 start_slow = time.clock()
-A_direct = gm.compute_directly(src_list, N)
+A_direct = compute_directly(src_list, N)
 Y_direct = np.matmul(A_direct, x)
 time_slow = time.clock() - start_slow
 
 print("Fast Time: ", time_fast)
 print("Slow Time: ", time_slow)
 
-A_far = lam_G*lam_mat.transpose()
-A = A_near + A_far - A_far_near
-
-pot_aim = sum(A.transpose())
-pot_direct = sum(A_direct.transpose())
-
-error = (pot_aim - pot_direct) / pot_direct
+error = np.abs((Y_fast - Y_direct) / Y_direct)
 avg_error = error.sum()/N
 print("Potential Error: ", avg_error)
 
@@ -192,7 +233,7 @@ Y1 = lam_mat.transpose() * x
 
 Y1p = pad_x_vector(Y1, N_grid, cols)
 #
-G_rows, G_cols = compute_rowcol(rows, cols) # of G matrix
+G_rows, G_cols = compute_rowcol(rows, cols, step) # of G matrix
 circ_rows = [toeplitz2circulant_row(G_rows[i], G_cols[i]) for i in range(rows)]
 block_circ_row = block_toeplitz2block_circulant(circ_rows, rows, cols)
 #
