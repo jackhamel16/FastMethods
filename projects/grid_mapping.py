@@ -31,10 +31,42 @@ def compute_M(u_count, order):
             count+= 1
     return(M)
 
-def compute_near_fields(src_list, lam_mat, lam_G, N):
+def compute_near_fields(src_list, u_count, Ca_shifts, lam_mat, step, cols):
+    N = len(src_list)
+    A_near, A_far_near = sparse.lil_matrix((N,N)), sparse.lil_matrix((N,N))
+    for a, src in enumerate(src_list):
+        src_pnts = Ca_shifts + src.grid
+        src_idxs = np.array([coord2idx(pnt[0],pnt[1],cols) \
+                             for pnt in src_pnts])
+        for b in src.near:
+            src2 = src_list[b]
+            src2_pnts = Ca_shifts + src2.grid
+            src2_idxs = np.array([coord2idx(pnt2[0],pnt2[1],cols) \
+                                            for pnt2 in src2_pnts])
+            lam_G = np.array([np.zeros(u_count) for n in range(u_count)])
+            # Direct Near-Field Calculation
+            if (src.x != src2.x) or (src.y != src2.y):
+                A_near[a,b] = 1 / np.sqrt((src.x - src2.x)**2 + \
+                                          (src.y - src2.y)**2)
+            for i, pnt in enumerate(src_pnts):
+                for j, pnt2 in enumerate(src2_pnts):
+                    if (pnt[0] != pnt2[0]) or (pnt[1] != pnt2[1]):
+                        lam_G[i,j] = lam_mat[b,int(src2_idxs[j])] / (step * \
+                                     np.sqrt((pnt[0]-pnt2[0])**2 + \
+                                             (pnt[1]-pnt2[1])**2))
+                    else:
+                        lam_G[i,j] = lam_mat[b,int(src2_idxs[j])]
+            sum1 = lam_G.sum(1) # pot at expansion pnts of src
+            A_src = 0
+            for i, idx in enumerate(src_idxs):
+                A_src += lam_mat[a,idx] * sum1[i] # maps back to src location
+            A_far_near[a,b] = A_src
+    return(A_near.asformat("csr"), A_far_near.asformat("csr"))
+
+def compute_near_fields_old(src_list, lam_mat, lam_G, N):
+    # Requires computing entire G matrix, which is expensive as hell
     A_n = sparse.lil_matrix((N,N)) # Direct near fields
     A_nf = sparse.lil_matrix((N,N)) # Near fields with grid mapping
-    
     for i, src in enumerate(src_list):
         for j, near_src in enumerate(src.near):
             A_nf[i,near_src] = lam_G[i,:] * lam_mat[near_src,:].transpose()
@@ -67,7 +99,13 @@ def find_near_srcs(src, src_list, lo, hi):
         if (lo < delta_x < hi) & (lo < delta_y < hi):
             src.near.append(i)
 
+def idx2coord(i, c):
+    row = np.floor(i/c)
+    col = i%c
+    return(row, col)
 
+def coord2idx(r, c, ctot):
+    return(int(c + r * ctot))
 # CODE TO FIND NEAR FIELD PINTS OF A SRC
 #for i,src in enumerate(src_list):
 #    src.grid = (int(np.floor(src.x/step)), int(np.floor(src.y/step)))
