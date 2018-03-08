@@ -106,6 +106,9 @@ def idx2coord(i, c):
 
 def coord2idx(r, c, ctot):
     return(int(c + r * ctot))
+
+### Unused Code ###
+
 # CODE TO FIND NEAR FIELD PINTS OF A SRC
 #for i,src in enumerate(src_list):
 #    src.grid = (int(np.floor(src.x/step)), int(np.floor(src.y/step)))
