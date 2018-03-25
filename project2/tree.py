@@ -11,7 +11,7 @@ class tree:
     def build(self):
         # Returns tree as list of lists containing srcs in box 
         for i,src in enumerate(self.src_list):
-            src.idx = pnt2idx(src.grid[0], src.grid[1], self.levels-1)
+            src.idx = pnt2idx(src.grid[0],src.grid[1],self.levels-1)
             for level in range(2,self.levels+1):
                 self.tree[int(src.idx[0:2*level],2)].append(i)
                 
@@ -85,17 +85,6 @@ class interaction:
                 obs_pot += np.dot(G, src_vec)
         return(obs_pot)
 
-    def compute_potentials(self):
-        for obs_box_idx in range(len(self.list)):
-            obs_srcs = self.my_tree.tree[obs_box_idx]
-            obs_pot = np.zeros(len(obs_srcs))
-            #far field interactions
-            obs_pot = self.compute_box_pot_slow(obs_box_idx)
-            #near field interacitons
-            obs_pot += self.compute_box_pot_slow(obs_box_idx, 1)
-            for i, obs in enumerate(obs_srcs):
-                self.potentials[obs] += obs_pot[i]
-
     
 def pnt2idx(x, y, level):
     # Returns index, as a string in binary, of a point using Morton Coding
@@ -117,8 +106,17 @@ def idx2pnt(idx):
             bx += bit
     return(int(bx,2), int(by,2))
 
-
-
+### OLD
+#    def compute_potentials(self):
+#        for obs_box_idx in range(len(self.list)):
+#            obs_srcs = self.my_tree.tree[obs_box_idx]
+#            obs_pot = np.zeros(len(obs_srcs))
+#            #far field interactions
+#            obs_pot = self.compute_box_pot_slow(obs_box_idx)
+#            #near field interacitons
+#            obs_pot += self.compute_box_pot_slow(obs_box_idx, 1)
+#            for i, obs in enumerate(obs_srcs):
+#                self.potentials[obs] += obs_pot[i]
 
 
 
