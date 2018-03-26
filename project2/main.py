@@ -1,13 +1,15 @@
 import numpy as np
 import numpy.linalg as lg
 import matplotlib.pyplot as plt
+import interaction
 import source
 import tree
 
-level_cnt = 7 # Count levels starting from root = 0 
+level_cnt = 5 # Count levels starting from root = 0 
 grid_dim = 2**(level_cnt-1) # Should remain power of two for easy life
 grid_step = 1
-N = 1000
+N = 500
+
 
 src_list = []
 #src_list = [source.source(0.1,0.1,1), source.source(0.4,0.4,1), \
@@ -25,7 +27,7 @@ my_tree = tree.tree(src_list, level_cnt)
 my_tree.build()
 
 print("Filling Interaction Lists...")
-interactions = tree.interaction(level_cnt, my_tree)
+interactions = interaction.interaction(level_cnt, my_tree)
 interactions.fill_list()
 
 #Computing Potentials
