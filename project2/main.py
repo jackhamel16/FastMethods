@@ -8,8 +8,7 @@ import tree
 level_cnt = 5 # Count levels starting from root = 0 
 grid_dim = 2**(level_cnt-1) # Should remain power of two for easy life
 grid_step = 1
-N = 500
-
+N = 50
 
 src_list = []
 #src_list = [source.source(0.1,0.1,1), source.source(0.4,0.4,1), \
