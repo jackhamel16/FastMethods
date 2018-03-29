@@ -27,33 +27,41 @@ def binary(idx, level):
 def estimate_rank(s, eps=1e-1):
     r = 0
     value = s[0]
-    while eps < value:
+    while (eps < value) and (r < (np.size(s)-1)):
         r += 1
         value = s[r]
     return(r)
 
-def uv_decompose(B, r):
+def uv_decompose(B, rank):
     U,s,V = lg.svd(B, full_matrices=0)
 #    r = estimate_rank(s)
-    if r <= np.size(B[:,0]/2):
+    if rank <= np.size(B[:,0]/2):
         V = np.dot(np.diag(s), V)
-        Ur, Vr = U[:,0:r], V[0:r,:]
+        Ur, Vr = U[:,0:rank], V[0:rank,:]
         return(Ur, Vr)
     else:
         return(0, 0, 0)
     
-def merge(U1, V1, U2, V2, horizontal=0):
+def merge(U1, V1, U2, V2, rank, horizontal=0):
     if horizontal == 1:
         U1, V1 = np.transpose(V1), np.transpose(U1)
         U2, V2 = np.transpose(V2), np.transpose(U2)
         
-    V12 = np.transpose(run_gram_schmidt(np.transpose(np.vstack((V1,V2)))))
-
-    U12_1 = np.dot(U1, np.dot(V1, np.transpose(V12)))
-    U12_2 = np.dot(U2, np.dot(V2, np.transpose(V12)))
+    if np.size(U1) == 0:
+        U12, V12 = U2, V2
+    elif np.size(U2) == 0:
+        U12, V12 = U1, V1
+    elif (np.size(U1) == 0) and (np.size(U2) == 0):
+        U12, V12 == np.array([]), np.array([])
+    else:   
+        V12 = np.transpose(run_gram_schmidt(\
+                                   np.transpose(np.vstack((V1,V2)))))[0:rank,:]
     
-    U12 = np.vstack((U12_1, U12_2))
-    
+        U12_1 = np.dot(U1, np.dot(V1, np.transpose(V12)))
+        U12_2 = np.dot(U2, np.dot(V2, np.transpose(V12)))
+        
+        U12 = np.vstack((U12_1, U12_2))
+        
     if horizontal == 1:
         return(np.transpose(V12), np.transpose(U12))
     else:

@@ -6,6 +6,7 @@ class interaction:
         self.level_cnt = level_cnt
         self.list = [[] for i in range(2**(level_cnt*2-1))]
         self.near_list = [[] for i in range(2**(level_cnt*2-1))]
+        self.uv_list = [{} for i in range(2**(level_cnt*2-1))]
         self.my_tree = tree
         self.src_list = tree.src_list
         self.potentials = np.zeros(len(self.src_list))
@@ -43,6 +44,18 @@ class interaction:
             for cx in range(child_dim):
                 for cy in range(child_dim):
                     self.fill_child(cx, cy, child_lvl)
+    
+    def c4_merge(self, n1, n2, m1, m2, rank):
+        # Merges 4 interchildren interaction G matrices
+        U1, V1 = self.uv_list[n1][m1]
+        U2, V2 = self.uv_list[n2][m1]
+        U3, V3 = self.uv_list[n1][m2]
+        U4, V4 = self.uv_list[n2][m2]
+        
+        U12,V12 = utils.merge(U1,V1,U2,V2,rank)
+        U34,V34 = utils.merge(U3,V3,U4,V4,rank)
+        
+        return(utils.merge(U12,V12,U34,V34,rank,horizontal=1))
                     
     def build_G(self, obs_srcs, src_srcs):
         G = np.array([np.zeros(len(src_srcs)) for i in range(len(obs_srcs))])
@@ -56,13 +69,10 @@ class interaction:
                           self.src_list[src].y)**2)
         return(G)
     
-    def compute_box_pot_slow(self, obs_box_idx, near=0):
+    def compute_near(self, obs_box_idx):
         obs_srcs = self.my_tree.tree[obs_box_idx]
         obs_pot = np.zeros(len(obs_srcs))
-        if near == 0:
-            box_list = self.list[obs_box_idx]
-        else:
-            box_list = self.near_list[obs_box_idx]
+        box_list = self.near_list[obs_box_idx]
         for src_box_idx in box_list:
             src_srcs = self.my_tree.tree[src_box_idx]
             src_vec = np.array([self.src_list[idx].weight for idx in src_srcs])
