@@ -26,23 +26,23 @@ def binary(idx, level):
 
 def estimate_rank(s, eps=1e-1):
     r = 0
-    value = s[0]
-    while (eps < value) and (r < (np.size(s)-1)):
-        r += 1
-        value = s[r]
+    for val in s:
+        if val > eps:
+            r += 1
+    
     return(r)
 
 def uv_decompose(B, eps):
     U,s,V = lg.svd(B, full_matrices=0)
     rank = estimate_rank(s, eps)
-    Vr = np.dot(np.diag(s)[0:rank,0:rank], V[0:rank,:])
-    Ur = U[:,0:rank]
+    Vr = np.dot(np.diag(s)[0:rank-1,0:rank-1], V[0:rank-1,:])
+    Ur = U[:,0:rank-1]
     return(Ur, Vr)
 
 def demote_rank(B, eps):
     U,s,V = lg.svd(B, full_matrices=0)
     rank = estimate_rank(s, eps)
-    return(V[0:rank,0:])
+    return(V[0:rank-1,0:])
     
 def merge(U1, V1, U2, V2, eps, horizontal=0):
     if horizontal == 1:
