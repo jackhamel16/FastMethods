@@ -26,7 +26,6 @@ def binary(idx, level):
 
 def estimate_rank(s, eps=1e-1):
     r = 0
-#    print(s)
     for val in s:
         if val > eps:
             r += 1
@@ -38,7 +37,6 @@ def estimate_rank(s, eps=1e-1):
 def uv_decompose(B, eps):
     U,s,V = lg.svd(B, full_matrices=0)
     rank = estimate_rank(s, eps)
-#    print('rank: ', rank)
     Vr = np.dot(np.diag(s)[0:rank,0:rank], V[0:rank,:])
     Ur = U[:,0:rank]
     return(Ur, Vr)
@@ -60,7 +58,6 @@ def merge(U1, V1, U2, V2, eps, horizontal=0):
     elif (np.size(U1) == 0) and (np.size(U2) == 0):
         U12, V12 == np.array([]), np.array([])
     else:   
-#        print(V1,'\n', V2)
         V12 = demote_rank(np.vstack((V1,V2)), eps)
         
         U12_1 = np.dot(U1, np.dot(V1, np.transpose(V12)))

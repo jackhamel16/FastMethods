@@ -8,7 +8,6 @@ import tree
 import utilities as utils
 
 #level_cnt = 4 # Count levels starting from root = 0 
-
 #grid_step = 1
 #N = 1000
 #eps = 1e-6
@@ -36,19 +35,13 @@ def run(level_cnt, grid_step, N, eps):
     
     for obs_idx in range(leaf_start, leaf_end):
         for src_idx in range(leaf_start, leaf_end):
-    #obs_idx = 64
-    #src_idx = 103
             G = interactions.build_G(my_tree.tree[obs_idx], \
                                      my_tree.tree[src_idx])
             if (my_tree.tree[src_idx] == []) or (my_tree.tree[obs_idx] == []):
                 U, V = np.array([]), np.array([])
             else:
-    #            if (obs_idx == 64) and (src_idx == 103):
-    #                print('ping')
                 U,V = utils.uv_decompose(G, eps)
             interactions.uv_list[obs_idx][src_idx] = (U,V)
-    #        if (obs_idx == 64) and (src_idx == 103):
-    #            print(U)
     
     print('Computing UV Decompositions...')
     for lvl in range(level_cnt-2, 1, -1):
@@ -59,7 +52,6 @@ def run(level_cnt, grid_step, N, eps):
     #        for src_idx in range(lb,ub):
                 n = my_tree.get_children(obs_idx,lvl) #rows of merging
                 m = my_tree.get_children(src_idx,lvl) #cols of merging
-                rank = 1
                 uv = [[0,0],[0,0]] # index as [row][col]
                 for i in range(2):
                     for j in range(2):
@@ -79,37 +71,7 @@ def run(level_cnt, grid_step, N, eps):
                                       uv[1][1][0], uv[1][1][1], eps)
                 
                 U,V = utils.merge(Um1, Vm1, Um2, Vm2, eps, 1)
-                interactions.uv_list[obs_idx][src_idx] = (U, V)
-    ## testing ### 
-    
-    #lvl = 2
-    #obs_idx = 16
-    #src_idx = 25
-    #n = my_tree.get_children(obs_idx,lvl) #rows of merging
-    #m = my_tree.get_children(src_idx,lvl) #cols of merging
-    #rank = 1
-    #uv = [[0,0],[0,0]] # index as [row][col]
-    #for i in range(2):
-    #    for j in range(2):
-    #        print(i,j)
-    #        U1, V1 = interactions.uv_list[n[2*i]][m[2*j]]
-    #        U2, V2 = interactions.uv_list[n[2*i+1]][m[2*j]]
-    #        U3, V3 = interactions.uv_list[n[2*i]][m[2*j+1]]
-    #        U4, V4 = interactions.uv_list[n[2*i+1]][m[2*j+1]]
-    #        
-    #        U12,V12 = utils.merge(U1, V1, U2, V2, eps)
-    #        U34,V34 = utils.merge(U3, V3, U4, V4, eps)
-    #        # Horizontal merge
-    #        uv[i][j] = utils.merge(U12, V12, U34, V34, eps, 1)
-    #
-    #Um1,Vm1 = utils.merge(uv[0][0][0], uv[0][0][1],\
-    #                      uv[1][0][0], uv[1][0][1], eps)
-    #Um2,Vm2 = utils.merge(uv[0][1][0], uv[0][1][1], \
-    #                      uv[1][1][0], uv[1][1][1], eps)
-    #
-    #U,V = utils.merge(Um1, Vm1, Um2, Vm2, eps, 1)
-    
-    
+                interactions.uv_list[obs_idx][src_idx] = (U, V)  
     
     fast_time = 0    
     print("Computing Fast Interactions...")
@@ -148,3 +110,32 @@ def run(level_cnt, grid_step, N, eps):
     print('Slow Time: ', slow_time)
     
     return(fast_time, slow_time, error)
+    
+## old testing code but saving it just incase ### 
+
+#lvl = 2
+#obs_idx = 16
+#src_idx = 25
+#n = my_tree.get_children(obs_idx,lvl) #rows of merging
+#m = my_tree.get_children(src_idx,lvl) #cols of merging
+#rank = 1
+#uv = [[0,0],[0,0]] # index as [row][col]
+#for i in range(2):
+#    for j in range(2):
+#        print(i,j)
+#        U1, V1 = interactions.uv_list[n[2*i]][m[2*j]]
+#        U2, V2 = interactions.uv_list[n[2*i+1]][m[2*j]]
+#        U3, V3 = interactions.uv_list[n[2*i]][m[2*j+1]]
+#        U4, V4 = interactions.uv_list[n[2*i+1]][m[2*j+1]]
+#        
+#        U12,V12 = utils.merge(U1, V1, U2, V2, eps)
+#        U34,V34 = utils.merge(U3, V3, U4, V4, eps)
+#        # Horizontal merge
+#        uv[i][j] = utils.merge(U12, V12, U34, V34, eps, 1)
+#
+#Um1,Vm1 = utils.merge(uv[0][0][0], uv[0][0][1],\
+#                      uv[1][0][0], uv[1][0][1], eps)
+#Um2,Vm2 = utils.merge(uv[0][1][0], uv[0][1][1], \
+#                      uv[1][1][0], uv[1][1][1], eps)
+#
+#U,V = utils.merge(Um1, Vm1, Um2, Vm2, eps, 1)
