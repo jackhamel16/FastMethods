@@ -5,20 +5,44 @@ import interaction
 import utilities as utils
 
 
+
+
+for i in n:
+    print(i, my_tree.tree[i], np.size(my_tree.tree[i]))
     
-#tree = my_tree.tree
-#obs_box_idx = 16
-#src_box_idx = 31
-#G = interactions.build_G(tree[obs_box_idx], tree[src_box_idx])
-#G1, G2 = G[0:4,:], G[4:,:]
-#U1, V1 = uv_decompose(G1)
-#U2, V2 = uv_decompose(G2)
+print('m')
+for i in m:
+    print(i, my_tree.tree[i], np.size(my_tree.tree[i]))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#eps = 1e-1
 #
-#Ug,Vg = merge(U1,V1,U2,V2)
-#Ut,Vt = merge2(U1,V1,U2,V2)
+#G1, G2, G3, G4 = G[0:4,0:4], G[4:,0:4], G[0:4,4:], G[4:,4:]
+#U1, V1 = utils.uv_decompose(G1, eps)
+#U2, V2 = utils.uv_decompose(G2, eps)
+#U3, V3 = utils.uv_decompose(G3, eps)
+#U4, V4 = utils.uv_decompose(G4, eps)
 #
-#Bt = np.dot(Ut,Vt)
+#U12,V12 = utils.merge(U1,V1,U2,V2,eps)
+#U34,V34 = utils.merge(U3,V3,U4,V4,eps)
 #
+#U, V = utils.merge(U12,V12,U34,V34,eps,1)
+#Bt = np.dot(U, V)
 #
 #error = (lg.norm(Bt) - lg.norm(G)) / lg.norm(G)
 #print(error)
