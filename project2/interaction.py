@@ -7,6 +7,8 @@ class interaction:
         self.list = [[] for i in range(2**(level_cnt*2-1))]
         self.near_list = [[] for i in range(2**(level_cnt*2-1))]
         self.uv_list = [{} for i in range(2**(level_cnt*2-1))]
+        self.src_vecs = [{} for i in range(2**(level_cnt*2-1))]
+        self.obs_vecs = [[] for i in range(2**(level_cnt*2-1))]
         self.my_tree = tree
         self.src_list = tree.src_list
         self.potentials = np.zeros(len(self.src_list))
@@ -44,18 +46,6 @@ class interaction:
             for cx in range(child_dim):
                 for cy in range(child_dim):
                     self.fill_child(cx, cy, child_lvl)
-    
-    def c4_merge(self, n1, n2, m1, m2, rank):
-        # Merges 4 interchildren interaction G matrices
-        U1, V1 = self.uv_list[n1][m1]
-        U2, V2 = self.uv_list[n2][m1]
-        U3, V3 = self.uv_list[n1][m2]
-        U4, V4 = self.uv_list[n2][m2]
-        
-        U12,V12 = utils.merge(U1,V1,U2,V2,rank)
-        U34,V34 = utils.merge(U3,V3,U4,V4,rank)
-        
-        return(utils.merge(U12,V12,U34,V34,rank,horizontal=1))
                     
     def build_G(self, obs_srcs, src_srcs):
         G = np.array([np.zeros(len(src_srcs)) for i in range(len(obs_srcs))])

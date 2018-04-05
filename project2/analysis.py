@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import main
 
 size = 20
-N = np.logspace(1, 4, size)
+N = np.logspace(1, 3, size)
 lvl_cnt = 4
 grid_step = 1
 eps = 1e-4

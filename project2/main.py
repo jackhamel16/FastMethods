@@ -7,10 +7,10 @@ import source
 import tree
 import utilities as utils
 
-#level_cnt = 4 # Count levels starting from root = 0 
-#grid_step = 1
-#N = 1000
-#eps = 1e-6
+level_cnt = 4 # Count levels starting from root = 0 
+grid_step = 1
+N = 100
+eps = 1e-6
 
 def run(level_cnt, grid_step, N, eps):
     grid_dim = 2**(level_cnt-1) # Should remain power of two for easy life
@@ -41,6 +41,13 @@ def run(level_cnt, grid_step, N, eps):
                 U, V = np.array([]), np.array([])
             else:
                 U,V = utils.uv_decompose(G, eps)
+            
+            srcs = np.array([src_list[i] for i in my_tree.tree[src_idx]])
+            obs_ids = my_tree.tree[obs_idx]
+            src_vec = np.array([src.weight for src in srcs])
+            
+            interactions.src_vecs[obs_idx][src_idx] = src_vec
+            interactions.obs_vecs[obs_idx] = obs_ids
             interactions.uv_list[obs_idx][src_idx] = (U,V)
     
     print('Computing UV Decompositions...')
@@ -69,28 +76,47 @@ def run(level_cnt, grid_step, N, eps):
                                       uv[1][0][0], uv[1][0][1], eps)
                 Um2,Vm2 = utils.merge(uv[0][1][0], uv[0][1][1], \
                                       uv[1][1][0], uv[1][1][1], eps)
+                src_vec = np.array([])
+                obs_ids = []
+                for box_idx in m:
+                    srcs = np.array([src_list[i] for i in my_tree.tree[box_idx]])
+                    src_vec = np.hstack((src_vec, np.array([src.weight \
+                                            for src in srcs])))
+                for box_idx in n:
+                    obss = np.array([src_list[i] for i in my_tree.tree[box_idx]])
+                    obs_ids = obs_ids + my_tree.tree[box_idx]
                 
                 U,V = utils.merge(Um1, Vm1, Um2, Vm2, eps, 1)
+                
+                interactions.src_vecs[obs_idx][src_idx] = src_vec
+                interactions.obs_vecs[obs_idx] = obs_ids
                 interactions.uv_list[obs_idx][src_idx] = (U, V)  
     
     fast_time = 0    
     print("Computing Fast Interactions...")
     for obs_box_idx in range(len(interactions.list)):
-        obs_srcs = my_tree.tree[obs_box_idx]
-        obs_pot = np.zeros(len(obs_srcs))
+        obs_srcs_near = my_tree.tree[obs_box_idx]
+        obs_srcs_far = interactions.obs_vecs[obs_box_idx]
+        obs_pot_near = np.zeros(len(obs_srcs_near))
+        obs_pot_far = np.zeros(len(obs_srcs_far))
         for src_box_idx in interactions.list[obs_box_idx]:
-            src_srcs = my_tree.tree[src_box_idx]
-            src_vec = np.array([src_list[idx].weight for idx in src_srcs])
+    #        src_srcs = my_tree.tree[src_box_idx]
+            src_vec = interactions.src_vecs[obs_box_idx][src_box_idx]
+    #        src_vec = np.array([src_list[idx].weight for idx in src_srcs])
             U, V = interactions.uv_list[obs_box_idx][src_box_idx]
             if np.size(U) != 0:
                 s = time.clock() 
-                obs_pot += np.dot(U, np.dot(V, src_vec))
+                obs_pot_far += np.dot(U, np.dot(V, src_vec))
                 fast_time += time.clock() - s
         #near field interacitons
-        obs_pot += interactions.compute_near(obs_box_idx)
-        for i, obs in enumerate(obs_srcs):
+        obs_pot_near += interactions.compute_near(obs_box_idx)
+        for i, obs in enumerate(obs_srcs_near):
             s = time.clock()
-            interactions.potentials[obs] += obs_pot[i]
+            interactions.potentials[obs] += obs_pot_near[i]
+            fast_time += time.clock() - s
+        for i, obs in enumerate(obs_srcs_far):
+            s = time.clock()
+            interactions.potentials[obs] += obs_pot_far[i]
             fast_time += time.clock() - s
     
     #Direct Computation
@@ -108,7 +134,7 @@ def run(level_cnt, grid_step, N, eps):
     print('Error: ', error)
     print('Fast Time: ', fast_time)
     print('Slow Time: ', slow_time)
-    
+        
     return(fast_time, slow_time, error)
     
 ## old testing code but saving it just incase ### 

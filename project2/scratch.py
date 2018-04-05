@@ -7,17 +7,15 @@ import utilities as utils
 
 
 
-for i in n:
-    print(i, my_tree.tree[i], np.size(my_tree.tree[i]))
-    
-print('m')
-for i in m:
-    print(i, my_tree.tree[i], np.size(my_tree.tree[i]))
+test = interactions.uv_list
+Gt = np.dot(test[16][31][0], test[16][31][1])
+test2 = my_tree.tree
+G = interactions.build_G(test2[16],test2[31])
+src_vect = interactions.src_vecs[16][31]
+src_vec = np.array([src_list[i].weight for i in my_tree.tree[31]])
 
-
-
-
-
+B = np.dot(G, src_vec)
+Bt = np.dot(Gt, src_vect)
 
 
 
