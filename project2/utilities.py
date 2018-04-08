@@ -26,23 +26,27 @@ def binary(idx, level):
 
 def estimate_rank(s, eps=1e-1):
     r = 0
-    value = s[0]
-    while (eps < value) and (r < (np.size(s)-1)):
-        r += 1
-        value = s[r]
-    return(r)
-
-def uv_decompose(B, rank):
-    U,s,V = lg.svd(B, full_matrices=0)
-#    r = estimate_rank(s)
-    if rank <= np.size(B[:,0]/2):
-        V = np.dot(np.diag(s), V)
-        Ur, Vr = U[:,0:rank], V[0:rank,:]
-        return(Ur, Vr)
+    for val in s:
+        if val > eps:
+            r += 1
+    if r == 0:
+        return(1)
     else:
-        return(0, 0, 0)
+        return(r)
+
+def uv_decompose(B, eps):
+    U,s,V = lg.svd(B, full_matrices=0)
+    rank = estimate_rank(s, eps)
+    Vr = np.dot(np.diag(s)[0:rank,0:rank], V[0:rank,:])
+    Ur = U[:,0:rank]
+    return(Ur, Vr)
+
+def demote_rank(B, eps):
+    U,s,V = lg.svd(B, full_matrices=0)
+    rank = estimate_rank(s, eps)
+    return(V[0:rank,0:])
     
-def merge(U1, V1, U2, V2, rank, horizontal=0):
+def merge(U1, V1, U2, V2, eps, horizontal=0):
     if horizontal == 1:
         U1, V1 = np.transpose(V1), np.transpose(U1)
         U2, V2 = np.transpose(V2), np.transpose(U2)
@@ -54,9 +58,8 @@ def merge(U1, V1, U2, V2, rank, horizontal=0):
     elif (np.size(U1) == 0) and (np.size(U2) == 0):
         U12, V12 == np.array([]), np.array([])
     else:   
-        V12 = np.transpose(run_gram_schmidt(\
-                                   np.transpose(np.vstack((V1,V2)))))[0:rank,:]
-    
+        V12 = demote_rank(np.vstack((V1,V2)), eps)
+        
         U12_1 = np.dot(U1, np.dot(V1, np.transpose(V12)))
         U12_2 = np.dot(U2, np.dot(V2, np.transpose(V12)))
         
@@ -66,16 +69,3 @@ def merge(U1, V1, U2, V2, rank, horizontal=0):
         return(np.transpose(V12), np.transpose(U12))
     else:
         return(U12, V12)
-
-def run_gram_schmidt(V):
-    n = np.size(V[:,0])
-    k = np.size(V[0,:])
-    U = np.array([np.zeros(k) for i in range(n)])
-    U[:,0] = V[:,0] / np.sqrt(np.dot(V[:,0], V[:,0]))
-    for i in range(1,k):
-        U[:,i] = V[:,i]
-        for j in range(i):
-            U[:,i] = U[:,i] - np.dot(U[:,i], U[:,j]) / \
-                              np.dot(U[:,j], U[:,j]) * U[:,j]
-        U[:,i] = U[:,i] / np.sqrt(np.dot(U[:,i], U[:,i]))
-    return(U)
