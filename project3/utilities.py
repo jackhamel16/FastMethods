@@ -10,7 +10,10 @@ def coord2idx(r, c, ctot):
 
 def cart2cyl(x, y):
     if (x == 0):
-        theta = np.pi * y / (2 * np.abs(y))
+        if (y == 0):
+            theta = 0
+        else:
+            theta = np.pi * y / (2 * np.abs(y))
     if (x > 0):
         theta = np.arctan(y / x)
     if (x < 0) and (y >= 0):
