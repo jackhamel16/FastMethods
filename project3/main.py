@@ -6,7 +6,7 @@ import source
 import utilities as utils
 import scipy.special as funcs
     
-N = 100
+N = 500
 step = 1
 modifier = 1
 
@@ -99,11 +99,11 @@ def run(N, step, modifier):
     fast = time.clock() - fast
     
     # TESTING
-#    slow = time.clock()
+    slow = time.clock()
     src_idxs = [i for i in range(N)]
     G = interactions.build_G(src_idxs, src_idxs, k)
     weights = np.array([src.weight for src in src_list])
-    slow = time.clock()
+#    slow = time.clock()
     test_pot = np.dot(G, weights)
     slow = time.clock() - slow
     
