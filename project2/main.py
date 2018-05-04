@@ -7,7 +7,7 @@ import source
 import tree
 import utilities as utils
 
-level_cnt = 4 # Count levels starting from root = 0 
+level_cnt = 5 # Count levels starting from root = 0 
 grid_step = 1
 N = 100
 eps = 1e-6
