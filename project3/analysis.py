@@ -7,7 +7,7 @@ slow_times = []
 errors = []
 
 step, modifier = 1, 1
-N = np.logspace(1, 4, 20, dtype='int')
+N = np.logspace(1, 4.4, 35, dtype='int')
 for i,n in enumerate(N):
     print("\nIteration: ", i)
     error, slow, fast = main.run(n, step, modifier)
